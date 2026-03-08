@@ -16,8 +16,21 @@ public class ShortcutItem extends JPanel {
     private final JLabel nameLabel;
 
     private static final Color HOVER_BG    = new Color(230, 236, 255);
+    private static final Color SELECTED_BG = new Color(200, 212, 255);
     private static final Color NORMAL_BG   = new Color(245, 246, 250);
     private static final Color ERROR_COLOR = new Color(200, 50, 50);
+
+    private boolean selected = false;
+    private Runnable onSelected; // called when this item becomes selected
+
+    public void setOnSelected(Runnable onSelected) {
+        this.onSelected = onSelected;
+    }
+
+    public void deselect() {
+        selected = false;
+        setBackground(NORMAL_BG);
+    }
 
     public ShortcutItem(Shortcut shortcut, Runnable onDelete, Runnable onEdit) {
         this.shortcut = shortcut;
@@ -59,23 +72,30 @@ public class ShortcutItem extends JPanel {
         // Tooltip: full path
         setToolTipText(shortcut.getPath());
 
-        // Hover effects
+        // Hover / click effects
         MouseAdapter hoverAdapter = new MouseAdapter() {
             @Override public void mouseEntered(MouseEvent e) {
-                setBackground(HOVER_BG);
+                if (!selected) setBackground(HOVER_BG);
                 actions.setVisible(true);
             }
             @Override public void mouseExited(MouseEvent e) {
-                // Convert exit point to this panel's coordinate space.
-                // If still inside the panel (e.g. moved to a child button), do nothing.
                 Point p = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), ShortcutItem.this);
                 if (!ShortcutItem.this.contains(p)) {
-                    setBackground(NORMAL_BG);
+                    setBackground(selected ? SELECTED_BG : NORMAL_BG);
                     actions.setVisible(false);
                 }
             }
             @Override public void mouseClicked(MouseEvent e) {
-                if (SwingUtilities.isLeftMouseButton(e)) {
+                if (!SwingUtilities.isLeftMouseButton(e)) return;
+                if (e.getClickCount() == 1) {
+                    // Single click: select this item (notify others to deselect)
+                    selected = true;
+                    setBackground(SELECTED_BG);
+                    if (onSelected != null) onSelected.run();
+                } else if (e.getClickCount() == 2) {
+                    // Double click: open folder
+                    selected = false;
+                    setBackground(HOVER_BG);
                     boolean opened = FolderOpener.open(shortcut.getPath());
                     if (!opened) {
                         nameLabel.setForeground(ERROR_COLOR);

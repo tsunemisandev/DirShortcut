@@ -16,6 +16,11 @@ public class GroupPanel extends JPanel {
     private final Group group;
     private final Runnable onChanged;
     private final List<ShortcutItem> shortcutItems = new ArrayList<>();
+    private Runnable onAnyItemSelected; // called when any item in this group is selected
+
+    public void setOnAnyItemSelected(Runnable callback) {
+        this.onAnyItemSelected = callback;
+    }
 
     private final JPanel header;
     private final JLabel titleLabel;
@@ -100,6 +105,10 @@ public class GroupPanel extends JPanel {
 
     public Group getGroup() { return group; }
 
+    public void deselectAll() {
+        shortcutItems.forEach(ShortcutItem::deselect);
+    }
+
     /** Filter visible shortcuts by query. Returns true if any shortcut is visible. */
     public boolean applyFilter(String query) {
         boolean anyVisible = false;
@@ -135,6 +144,12 @@ public class GroupPanel extends JPanel {
                 },
                 () -> showEditDialog(s)
         );
+        item.setOnSelected(() -> {
+            // Deselect all other items in this group
+            shortcutItems.stream().filter(i -> i != item).forEach(ShortcutItem::deselect);
+            // Notify MainWindow to deselect items in other groups
+            if (onAnyItemSelected != null) onAnyItemSelected.run();
+        });
         shortcutItems.add(item);
         body.add(item);
     }

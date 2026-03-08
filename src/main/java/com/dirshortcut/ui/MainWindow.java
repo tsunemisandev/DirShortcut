@@ -110,6 +110,10 @@ public class MainWindow extends JFrame {
 
     private void addGroupPanel(Group group) {
         GroupPanel panel = new GroupPanel(group, this::save);
+        // When any item in this panel is selected, deselect all items in other panels
+        panel.setOnAnyItemSelected(() ->
+            groupPanels.stream().filter(p -> p != panel).forEach(GroupPanel::deselectAll)
+        );
         panel.addPropertyChangeListener("groupDeleted", evt -> {
             Group deleted = (Group) evt.getNewValue();
             groups.remove(deleted);
