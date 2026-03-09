@@ -10,6 +10,8 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 public class GroupPanel extends JPanel {
 
@@ -19,10 +21,14 @@ public class GroupPanel extends JPanel {
     private Runnable onAnyItemSelected;
     private Runnable onMoveUp;
     private Runnable onMoveDown;
+    private Supplier<List<String>> groupNamesProvider;
+    private BiConsumer<Shortcut, String> onMoveToGroup;
 
-    public void setOnAnyItemSelected(Runnable r) { this.onAnyItemSelected = r; }
-    public void setOnMoveUp(Runnable r)          { this.onMoveUp = r; }
-    public void setOnMoveDown(Runnable r)        { this.onMoveDown = r; }
+    public void setOnAnyItemSelected(Runnable r)                          { this.onAnyItemSelected  = r; }
+    public void setOnMoveUp(Runnable r)                                   { this.onMoveUp           = r; }
+    public void setOnMoveDown(Runnable r)                                 { this.onMoveDown         = r; }
+    public void setGroupNamesProvider(Supplier<List<String>> p)           { this.groupNamesProvider = p; }
+    public void setOnMoveToGroup(BiConsumer<Shortcut, String> c)          { this.onMoveToGroup      = c; }
 
     private final JPanel header;
     private final JLabel titleLabel;
@@ -108,6 +114,8 @@ public class GroupPanel extends JPanel {
 
     public Group getGroup() { return group; }
 
+    public void rebuild() { rebuildShortcutItems(); }
+
     public void deselectAll() {
         shortcutItems.forEach(ShortcutItem::deselect);
     }
@@ -149,6 +157,10 @@ public class GroupPanel extends JPanel {
         item.setOnSelected(() -> {
             shortcutItems.stream().filter(i -> i != item).forEach(ShortcutItem::deselect);
             if (onAnyItemSelected != null) onAnyItemSelected.run();
+        });
+        item.setGroupNamesProvider(groupNamesProvider);
+        item.setOnMoveToGroup(targetGroupName -> {
+            if (onMoveToGroup != null) onMoveToGroup.accept(s, targetGroupName);
         });
 
         int currentIndex = group.getShortcuts().indexOf(s);

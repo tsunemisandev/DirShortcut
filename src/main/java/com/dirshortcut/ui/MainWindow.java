@@ -1,6 +1,7 @@
 package com.dirshortcut.ui;
 
 import com.dirshortcut.model.Group;
+import com.dirshortcut.model.Shortcut;
 import com.dirshortcut.persistence.Storage;
 
 import javax.swing.*;
@@ -116,6 +117,32 @@ public class MainWindow extends JFrame {
         panel.setOnAnyItemSelected(() ->
             groupPanels.stream().filter(p -> p != panel).forEach(GroupPanel::deselectAll)
         );
+
+        // Provide names of all OTHER groups for the right-click move menu
+        panel.setGroupNamesProvider(() ->
+            groups.stream()
+                  .filter(g -> g != group)
+                  .map(Group::getName)
+                  .toList()
+        );
+
+        // Move a shortcut from this group to another group
+        panel.setOnMoveToGroup((shortcut, targetGroupName) -> {
+            Group target = groups.stream()
+                    .filter(g -> g.getName().equals(targetGroupName))
+                    .findFirst().orElse(null);
+            if (target == null) return;
+            group.removeShortcut(shortcut);
+            target.addShortcut(shortcut);
+            // Rebuild both panels
+            panel.rebuild();
+            groupPanels.stream()
+                    .filter(p -> p.getGroup() == target)
+                    .findFirst()
+                    .ifPresent(GroupPanel::rebuild);
+            save();
+        });
+
         panel.setOnMoveUp(() -> {
             int idx = groupPanels.indexOf(panel);
             if (idx > 0) moveGroup(idx, idx - 1);

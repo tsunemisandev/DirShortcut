@@ -7,6 +7,9 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public class ShortcutItem extends JPanel {
 
@@ -25,10 +28,14 @@ public class ShortcutItem extends JPanel {
     private Runnable onSelected;
     private Runnable onMoveUp;
     private Runnable onMoveDown;
+    private Supplier<List<String>> groupNamesProvider;
+    private Consumer<String> onMoveToGroup;
 
-    public void setOnSelected(Runnable r)  { this.onSelected  = r; }
-    public void setOnMoveUp(Runnable r)    { this.onMoveUp    = r; }
-    public void setOnMoveDown(Runnable r)  { this.onMoveDown  = r; }
+    public void setOnSelected(Runnable r)                        { this.onSelected        = r; }
+    public void setOnMoveUp(Runnable r)                          { this.onMoveUp          = r; }
+    public void setOnMoveDown(Runnable r)                        { this.onMoveDown        = r; }
+    public void setGroupNamesProvider(Supplier<List<String>> p)  { this.groupNamesProvider = p; }
+    public void setOnMoveToGroup(Consumer<String> c)             { this.onMoveToGroup     = c; }
 
     public void deselect() {
         selected = false;
@@ -80,6 +87,24 @@ public class ShortcutItem extends JPanel {
 
         // Hover / click effects
         MouseAdapter hoverAdapter = new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e)  { maybeShowPopup(e); }
+            @Override public void mouseReleased(MouseEvent e) { maybeShowPopup(e); }
+            private void maybeShowPopup(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                List<String> names = groupNamesProvider != null ? groupNamesProvider.get() : List.of();
+                if (names.isEmpty()) return;
+                JPopupMenu menu = new JPopupMenu();
+                JMenu moveMenu = new JMenu("グループへ移動");
+                for (String groupName : names) {
+                    JMenuItem item = new JMenuItem(groupName);
+                    item.addActionListener(ae -> {
+                        if (onMoveToGroup != null) onMoveToGroup.accept(groupName);
+                    });
+                    moveMenu.add(item);
+                }
+                menu.add(moveMenu);
+                menu.show(e.getComponent(), e.getX(), e.getY());
+            }
             @Override public void mouseEntered(MouseEvent e) {
                 if (!selected) setBackground(HOVER_BG);
                 actions.setVisible(true);
