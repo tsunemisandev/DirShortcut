@@ -7,13 +7,41 @@ import java.text.Normalizer;
 
 public class FolderOpener {
 
+    public static boolean isNetworkPath(String path) {
+        if (path == null) return false;
+        String p = path.trim();
+        // Windows UNC: \\server\share
+        if (p.startsWith("\\\\") || p.startsWith("//")) return true;
+        // macOS network mounts
+        if (p.startsWith("/Volumes/") || p.startsWith("/net/") || p.startsWith("/mnt/")) return true;
+        return false;
+    }
+
     public static boolean open(String path) {
-        File folder = resolve(path);
+        if (path == null || path.isBlank()) return false;
+
+        String os = System.getProperty("os.name").toLowerCase();
+
+        // ── Windows UNC path (\\server\share\...) ────────────────────────────
+        // File.exists() often returns false for UNC before the shell resolves it.
+        // Delegate directly to explorer.exe.
+        String trimmed = path.trim();
+        if (os.contains("win") && (trimmed.startsWith("\\\\") || trimmed.startsWith("//"))) {
+            try {
+                new ProcessBuilder("explorer.exe", trimmed.replace('/', '\\')).start();
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return false;
+            }
+        }
+
+        // ── Resolve local / mounted path ─────────────────────────────────────
+        File folder = resolve(trimmed);
         if (folder == null) return false;
+
         try {
-            String os = System.getProperty("os.name").toLowerCase();
             if (os.contains("mac")) {
-                // Use 'open' directly to avoid Desktop API Unicode issues on macOS
                 new ProcessBuilder("open", folder.getAbsolutePath()).start();
                 return true;
             }
@@ -32,19 +60,17 @@ public class FolderOpener {
     }
 
     /**
-     * Resolves the path to an existing directory, trying NFC and NFD normalization
-     * to handle macOS APFS Unicode (NFD) vs pasted text (NFC) differences.
+     * Resolves a path to an existing directory.
+     * Tries NFC and NFD normalization to handle macOS APFS (NFD) vs pasted text (NFC).
      */
     private static File resolve(String path) {
         File f = new File(path);
         if (f.exists() && f.isDirectory()) return f;
 
-        // Try NFD (macOS native normalization)
         String nfd = Normalizer.normalize(path, Normalizer.Form.NFD);
         File fNfd = new File(nfd);
         if (fNfd.exists() && fNfd.isDirectory()) return fNfd;
 
-        // Try NFC
         String nfc = Normalizer.normalize(path, Normalizer.Form.NFC);
         File fNfc = new File(nfc);
         if (fNfc.exists() && fNfc.isDirectory()) return fNfc;

@@ -8,7 +8,6 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +17,7 @@ public class MainWindow extends JFrame {
     private final List<GroupPanel> groupPanels = new ArrayList<>();
     private final JPanel groupsContainer;
     private final JTextField searchField;
+    private JScrollPane scrollPane;
 
     public MainWindow() {
         super("DirShortcut");
@@ -27,7 +27,7 @@ public class MainWindow extends JFrame {
 
         // Position: full screen height, fixed width, pinned to right edge
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
-        Rectangle screen = ge.getMaximumWindowBounds(); // respects taskbar
+        Rectangle screen = ge.getMaximumWindowBounds();
         int width = 420;
         setMinimumSize(new Dimension(width, screen.height));
         setPreferredSize(new Dimension(width, screen.height));
@@ -82,9 +82,11 @@ public class MainWindow extends JFrame {
         groupsContainer.setBackground(new Color(240, 242, 250));
         groupsContainer.setBorder(new EmptyBorder(10, 10, 10, 10));
 
-        JScrollPane scrollPane = new JScrollPane(groupsContainer);
+        scrollPane = new JScrollPane(groupsContainer);
         scrollPane.setBorder(null);
-        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollPane.getVerticalScrollBar().setUnitIncrement(24);
 
         root.add(topSection, BorderLayout.NORTH);
         root.add(scrollPane, BorderLayout.CENTER);
@@ -110,10 +112,19 @@ public class MainWindow extends JFrame {
 
     private void addGroupPanel(Group group) {
         GroupPanel panel = new GroupPanel(group, this::save);
-        // When any item in this panel is selected, deselect all items in other panels
+
         panel.setOnAnyItemSelected(() ->
             groupPanels.stream().filter(p -> p != panel).forEach(GroupPanel::deselectAll)
         );
+        panel.setOnMoveUp(() -> {
+            int idx = groupPanels.indexOf(panel);
+            if (idx > 0) moveGroup(idx, idx - 1);
+        });
+        panel.setOnMoveDown(() -> {
+            int idx = groupPanels.indexOf(panel);
+            if (idx < groupPanels.size() - 1) moveGroup(idx, idx + 1);
+        });
+
         panel.addPropertyChangeListener("groupDeleted", evt -> {
             Group deleted = (Group) evt.getNewValue();
             groups.remove(deleted);
@@ -123,8 +134,30 @@ public class MainWindow extends JFrame {
             groupsContainer.repaint();
             save();
         });
+
         groupPanels.add(panel);
         groupsContainer.add(panel);
+    }
+
+    private void moveGroup(int fromIdx, int toIdx) {
+        // Swap in data model
+        Group g = groups.remove(fromIdx);
+        groups.add(toIdx, g);
+
+        // Swap panels
+        GroupPanel p = groupPanels.remove(fromIdx);
+        groupPanels.add(toIdx, p);
+
+        // Rebuild container order (preserve scroll position)
+        int scrollY = scrollPane.getVerticalScrollBar().getValue();
+        groupsContainer.removeAll();
+        for (GroupPanel gp : groupPanels) groupsContainer.add(gp);
+        groupsContainer.revalidate();
+        groupsContainer.repaint();
+        SwingUtilities.invokeLater(() ->
+            scrollPane.getVerticalScrollBar().setValue(scrollY)
+        );
+        save();
     }
 
     private void showNewGroupDialog() {

@@ -16,11 +16,13 @@ public class GroupPanel extends JPanel {
     private final Group group;
     private final Runnable onChanged;
     private final List<ShortcutItem> shortcutItems = new ArrayList<>();
-    private Runnable onAnyItemSelected; // called when any item in this group is selected
+    private Runnable onAnyItemSelected;
+    private Runnable onMoveUp;
+    private Runnable onMoveDown;
 
-    public void setOnAnyItemSelected(Runnable callback) {
-        this.onAnyItemSelected = callback;
-    }
+    public void setOnAnyItemSelected(Runnable r) { this.onAnyItemSelected = r; }
+    public void setOnMoveUp(Runnable r)          { this.onMoveUp = r; }
+    public void setOnMoveDown(Runnable r)        { this.onMoveDown = r; }
 
     private final JPanel header;
     private final JLabel titleLabel;
@@ -52,15 +54,19 @@ public class GroupPanel extends JPanel {
         JPanel headerActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
         headerActions.setOpaque(false);
 
+        JButton upBtn     = headerBtn("▲");
+        JButton downBtn   = headerBtn("▼");
         JButton addBtn    = headerBtn("+ 追加");
         JButton renameBtn = headerBtn("✏");
         JButton deleteBtn = headerBtn("✕");
+        headerActions.add(upBtn);
+        headerActions.add(downBtn);
         headerActions.add(addBtn);
         headerActions.add(renameBtn);
         headerActions.add(deleteBtn);
 
-        header.add(titleLabel,     BorderLayout.CENTER);
-        header.add(headerActions,  BorderLayout.EAST);
+        header.add(titleLabel,    BorderLayout.CENTER);
+        header.add(headerActions, BorderLayout.EAST);
 
         // ── Body ─────────────────────────────────────────────────────────────
         body = new JPanel();
@@ -71,23 +77,21 @@ public class GroupPanel extends JPanel {
         add(header);
         add(body);
 
-        // Populate shortcuts
         rebuildShortcutItems();
 
         // ── Events ───────────────────────────────────────────────────────────
         header.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) {
-                // Only toggle collapse if not clicking a button
-                if (!(e.getSource() instanceof JButton)) {
-                    toggleCollapse();
-                }
+                if (!(e.getSource() instanceof JButton)) toggleCollapse();
             }
         });
         titleLabel.addMouseListener(new MouseAdapter() {
             @Override public void mouseClicked(MouseEvent e) { toggleCollapse(); }
         });
 
-        addBtn.addActionListener(e -> showAddDialog());
+        upBtn.addActionListener(e     -> { if (onMoveUp   != null) onMoveUp.run();   });
+        downBtn.addActionListener(e   -> { if (onMoveDown != null) onMoveDown.run(); });
+        addBtn.addActionListener(e    -> showAddDialog());
         renameBtn.addActionListener(e -> showRenameDialog());
         deleteBtn.addActionListener(e -> {
             int choice = JOptionPane.showConfirmDialog(
@@ -95,7 +99,6 @@ public class GroupPanel extends JPanel {
                     "グループ「" + group.getName() + "」とすべてのショートカットを削除しますか？",
                     "削除の確認", JOptionPane.YES_NO_OPTION);
             if (choice == JOptionPane.YES_OPTION) {
-                // Signal parent to remove this group — handled in MainWindow
                 firePropertyChange("groupDeleted", null, group);
             }
         });
@@ -109,7 +112,6 @@ public class GroupPanel extends JPanel {
         shortcutItems.forEach(ShortcutItem::deselect);
     }
 
-    /** Filter visible shortcuts by query. Returns true if any shortcut is visible. */
     public boolean applyFilter(String query) {
         boolean anyVisible = false;
         for (ShortcutItem item : shortcutItems) {
@@ -145,11 +147,28 @@ public class GroupPanel extends JPanel {
                 () -> showEditDialog(s)
         );
         item.setOnSelected(() -> {
-            // Deselect all other items in this group
             shortcutItems.stream().filter(i -> i != item).forEach(ShortcutItem::deselect);
-            // Notify MainWindow to deselect items in other groups
             if (onAnyItemSelected != null) onAnyItemSelected.run();
         });
+
+        int currentIndex = group.getShortcuts().indexOf(s);
+        item.setOnMoveUp(() -> {
+            int idx = group.getShortcuts().indexOf(s);
+            if (idx > 0) {
+                group.moveShortcut(idx, idx - 1);
+                rebuildShortcutItems();
+                onChanged.run();
+            }
+        });
+        item.setOnMoveDown(() -> {
+            int idx = group.getShortcuts().indexOf(s);
+            if (idx < group.getShortcuts().size() - 1) {
+                group.moveShortcut(idx, idx + 1);
+                rebuildShortcutItems();
+                onChanged.run();
+            }
+        });
+
         shortcutItems.add(item);
         body.add(item);
     }
@@ -164,9 +183,10 @@ public class GroupPanel extends JPanel {
         JTextField pathField  = new JTextField(30);
         JTextField labelField = new JTextField(30);
 
-        JPanel panel = new JPanel(new GridLayout(4, 1, 4, 4));
+        JPanel panel = new JPanel(new GridLayout(5, 1, 4, 4));
         panel.add(new JLabel("フォルダパス："));
         panel.add(pathField);
+        panel.add(new JLabel("<html><small style='color:gray'>例：C:\\Users\\you\\folder　または　\\\\server\\share\\folder</small></html>"));
         panel.add(new JLabel("ラベル（任意）："));
         panel.add(labelField);
 

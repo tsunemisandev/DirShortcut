@@ -19,13 +19,16 @@ public class ShortcutItem extends JPanel {
     private static final Color SELECTED_BG = new Color(200, 212, 255);
     private static final Color NORMAL_BG   = new Color(245, 246, 250);
     private static final Color ERROR_COLOR = new Color(200, 50, 50);
+    private static final Color NETWORK_COLOR = new Color(180, 100, 0);
 
     private boolean selected = false;
-    private Runnable onSelected; // called when this item becomes selected
+    private Runnable onSelected;
+    private Runnable onMoveUp;
+    private Runnable onMoveDown;
 
-    public void setOnSelected(Runnable onSelected) {
-        this.onSelected = onSelected;
-    }
+    public void setOnSelected(Runnable r)  { this.onSelected  = r; }
+    public void setOnMoveUp(Runnable r)    { this.onMoveUp    = r; }
+    public void setOnMoveDown(Runnable r)  { this.onMoveDown  = r; }
 
     public void deselect() {
         selected = false;
@@ -61,15 +64,18 @@ public class ShortcutItem extends JPanel {
         actions.setOpaque(false);
         actions.setVisible(false);
 
+        JButton upBtn     = smallButton("↑");
+        JButton downBtn   = smallButton("↓");
         JButton editBtn   = smallButton("✏");
         JButton deleteBtn = smallButton("✕");
+        actions.add(upBtn);
+        actions.add(downBtn);
         actions.add(editBtn);
         actions.add(deleteBtn);
 
         add(left,    BorderLayout.CENTER);
         add(actions, BorderLayout.EAST);
 
-        // Tooltip: full path
         setToolTipText(shortcut.getPath());
 
         // Hover / click effects
@@ -88,33 +94,36 @@ public class ShortcutItem extends JPanel {
             @Override public void mouseClicked(MouseEvent e) {
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
                 if (e.getClickCount() == 1) {
-                    // Single click: select this item (notify others to deselect)
                     selected = true;
                     setBackground(SELECTED_BG);
                     if (onSelected != null) onSelected.run();
                 } else if (e.getClickCount() == 2) {
-                    // Double click: open folder
                     selected = false;
                     setBackground(HOVER_BG);
                     boolean opened = FolderOpener.open(shortcut.getPath());
                     if (!opened) {
-                        nameLabel.setForeground(ERROR_COLOR);
-                        nameLabel.setToolTipText("パスが見つかりません：" + shortcut.getPath());
+                        boolean isNetwork = FolderOpener.isNetworkPath(shortcut.getPath());
+                        nameLabel.setForeground(isNetwork ? NETWORK_COLOR : ERROR_COLOR);
+                        nameLabel.setToolTipText(isNetwork
+                                ? "ネットワークパスに接続できません：" + shortcut.getPath()
+                                : "パスが見つかりません：" + shortcut.getPath());
                     }
                 }
             }
         };
 
-        // Apply hover adapter to this panel AND all child components so
-        // entering/exiting children doesn't flicker the hover state.
         addMouseListener(hoverAdapter);
         for (Component child : getComponents()) {
             addHoverToComponent(child, hoverAdapter);
         }
-        addHoverToComponent(editBtn, hoverAdapter);
+        addHoverToComponent(upBtn,     hoverAdapter);
+        addHoverToComponent(downBtn,   hoverAdapter);
+        addHoverToComponent(editBtn,   hoverAdapter);
         addHoverToComponent(deleteBtn, hoverAdapter);
 
-        editBtn.addActionListener(e -> onEdit.run());
+        upBtn.addActionListener(e     -> { if (onMoveUp   != null) onMoveUp.run();   });
+        downBtn.addActionListener(e   -> { if (onMoveDown != null) onMoveDown.run(); });
+        editBtn.addActionListener(e   -> onEdit.run());
         deleteBtn.addActionListener(e -> onDelete.run());
     }
 
@@ -125,13 +134,13 @@ public class ShortcutItem extends JPanel {
             nameLabel.setText(display);
             nameLabel.setForeground(Color.DARK_GRAY);
         } else {
-            String lower   = display.toLowerCase();
-            String query   = searchQuery.toLowerCase();
-            int idx        = lower.indexOf(query);
+            String lower = display.toLowerCase();
+            String query = searchQuery.toLowerCase();
+            int idx      = lower.indexOf(query);
             if (idx >= 0) {
-                String before  = escapeHtml(display.substring(0, idx));
-                String match   = escapeHtml(display.substring(idx, idx + query.length()));
-                String after   = escapeHtml(display.substring(idx + query.length()));
+                String before = escapeHtml(display.substring(0, idx));
+                String match  = escapeHtml(display.substring(idx, idx + query.length()));
+                String after  = escapeHtml(display.substring(idx + query.length()));
                 nameLabel.setText("<html>" + before
                         + "<span style='background:#FFE066;'>" + match + "</span>"
                         + after + "</html>");
@@ -143,7 +152,6 @@ public class ShortcutItem extends JPanel {
         }
     }
 
-    /** Returns true if this shortcut matches the given query. */
     public boolean matches(String query) {
         if (query == null || query.isBlank()) return true;
         String q = query.toLowerCase();
@@ -151,9 +159,7 @@ public class ShortcutItem extends JPanel {
                 || shortcut.getPath().toLowerCase().contains(q);
     }
 
-    public Shortcut getShortcut() {
-        return shortcut;
-    }
+    public Shortcut getShortcut() { return shortcut; }
 
     private JButton smallButton(String text) {
         JButton btn = new JButton(text);
@@ -167,9 +173,7 @@ public class ShortcutItem extends JPanel {
     }
 
     private void addHoverToComponent(Component c, MouseAdapter adapter) {
-        if (c instanceof JComponent jc) {
-            jc.addMouseListener(adapter);
-        }
+        if (c instanceof JComponent jc) jc.addMouseListener(adapter);
     }
 
     private String escapeHtml(String s) {
