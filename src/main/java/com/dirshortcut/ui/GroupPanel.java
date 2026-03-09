@@ -57,12 +57,12 @@ public class GroupPanel extends JPanel {
         titleLabel.setForeground(HEADER_FG);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 13f));
 
-        JPanel headerActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        JPanel headerActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 1, 0));
         headerActions.setOpaque(false);
 
         JButton upBtn     = headerBtn("▲");
         JButton downBtn   = headerBtn("▼");
-        JButton addBtn    = headerBtn("+ 追加");
+        JButton addBtn    = headerBtn("+");
         JButton renameBtn = headerBtn("✏");
         JButton deleteBtn = headerBtn("✕");
         headerActions.add(upBtn);
@@ -259,7 +259,7 @@ public class GroupPanel extends JPanel {
         btn.setBorderPainted(false);
         btn.setContentAreaFilled(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.setMargin(new Insets(1, 6, 1, 6));
+        btn.setMargin(new Insets(1, 4, 1, 4));
         return btn;
     }
 }
