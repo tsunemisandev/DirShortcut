@@ -29,7 +29,7 @@ public class MainWindow extends JFrame {
         // Position: full screen height, fixed width, pinned to right edge
         GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
         Rectangle screen = ge.getMaximumWindowBounds();
-        int width = 420;
+        int width = 500;
         setMinimumSize(new Dimension(width, screen.height));
         setPreferredSize(new Dimension(width, screen.height));
         setLocation(screen.x + screen.width - width, screen.y);
