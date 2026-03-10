@@ -120,6 +120,12 @@ public class GroupPanel extends JPanel {
         shortcutItems.forEach(ShortcutItem::deselect);
     }
 
+    public void setCollapsed(boolean collapse) {
+        collapsed = collapse;
+        body.setVisible(!collapsed);
+        titleLabel.setText((collapsed ? "▶ " : "▼ ") + group.getName());
+    }
+
     public boolean applyFilter(String query) {
         if (query == null || query.isBlank()) {
             shortcutItems.forEach(i -> { i.setVisible(true); i.updateDisplay(null); });

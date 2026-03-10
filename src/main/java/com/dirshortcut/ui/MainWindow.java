@@ -48,16 +48,18 @@ public class MainWindow extends JFrame {
         appTitle.setForeground(Color.WHITE);
         appTitle.setFont(appTitle.getFont().deriveFont(Font.BOLD, 16f));
 
-        JButton newGroupBtn = new JButton("+ グループ");
-        newGroupBtn.setForeground(Color.WHITE);
-        newGroupBtn.setFont(newGroupBtn.getFont().deriveFont(12f));
-        newGroupBtn.setFocusPainted(false);
-        newGroupBtn.setBorderPainted(false);
-        newGroupBtn.setContentAreaFilled(false);
-        newGroupBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        JButton newGroupBtn  = topBarBtn("+ グループ");
+        JButton expandAllBtn = topBarBtn("全開");
+        JButton collapseAllBtn = topBarBtn("全閉");
 
-        topBar.add(appTitle,    BorderLayout.WEST);
-        topBar.add(newGroupBtn, BorderLayout.EAST);
+        JPanel topBarActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        topBarActions.setOpaque(false);
+        topBarActions.add(expandAllBtn);
+        topBarActions.add(collapseAllBtn);
+        topBarActions.add(newGroupBtn);
+
+        topBar.add(appTitle,      BorderLayout.WEST);
+        topBar.add(topBarActions, BorderLayout.EAST);
 
         // ── Search bar ────────────────────────────────────────────────────────
         JPanel searchBar = new JPanel(new BorderLayout(6, 0));
@@ -99,6 +101,8 @@ public class MainWindow extends JFrame {
 
         // ── Events ────────────────────────────────────────────────────────────
         newGroupBtn.addActionListener(e -> showNewGroupDialog());
+        expandAllBtn.addActionListener(e -> { groupPanels.forEach(p -> p.setCollapsed(false)); groupsContainer.revalidate(); groupsContainer.repaint(); });
+        collapseAllBtn.addActionListener(e -> { groupPanels.forEach(p -> p.setCollapsed(true));  groupsContainer.revalidate(); groupsContainer.repaint(); });
 
         searchField.addKeyListener(new KeyAdapter() {
             @Override public void keyReleased(KeyEvent e) {
@@ -209,5 +213,16 @@ public class MainWindow extends JFrame {
 
     private void save() {
         Storage.save(groups);
+    }
+
+    private JButton topBarBtn(String text) {
+        JButton btn = new JButton(text);
+        btn.setForeground(Color.WHITE);
+        btn.setFont(btn.getFont().deriveFont(12f));
+        btn.setFocusPainted(false);
+        btn.setBorderPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        return btn;
     }
 }
