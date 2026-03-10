@@ -121,14 +121,20 @@ public class GroupPanel extends JPanel {
     }
 
     public boolean applyFilter(String query) {
+        if (query == null || query.isBlank()) {
+            shortcutItems.forEach(i -> { i.setVisible(true); i.updateDisplay(null); });
+            setVisible(true);
+            return true;
+        }
+        boolean groupMatches = group.getName().toLowerCase().contains(query.toLowerCase());
         boolean anyVisible = false;
         for (ShortcutItem item : shortcutItems) {
-            boolean visible = item.matches(query);
+            boolean visible = groupMatches || item.matches(query);
             item.setVisible(visible);
-            item.updateDisplay(query);
+            item.updateDisplay(groupMatches ? null : query);
             if (visible) anyVisible = true;
         }
-        setVisible(query == null || query.isBlank() || anyVisible);
+        setVisible(anyVisible);
         return anyVisible;
     }
 
